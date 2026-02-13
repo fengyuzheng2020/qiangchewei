@@ -114,20 +114,21 @@ button:disabled {
 
 .toast-wrap {
   position: fixed;
-  right: 18px;
-  top: 18px;
+  inset: 0;
   z-index: 120;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: column-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   pointer-events: none;
+  padding: 16px;
 }
 
 .toast {
-  min-width: 220px;
-  max-width: 360px;
+  width: min(92vw, 420px);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: 1px solid #d7bc8e;
   background: #fff9eb;
   box-shadow: 0 10px 24px rgba(58, 35, 4, 0.22);
@@ -136,6 +137,7 @@ button:disabled {
   justify-content: space-between;
   gap: 10px;
   pointer-events: auto;
+  animation: toast-pop 180ms ease-out;
 }
 
 .toast-success {
@@ -158,6 +160,17 @@ button:disabled {
   border-radius: 999px;
   line-height: 1.2;
   box-shadow: none;
+}
+
+@keyframes toast-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .tabs {
@@ -548,5 +561,11 @@ button:disabled {
   .car-thumb {
     max-width: 180px;
     height: 108px;
+  }
+
+  .toast {
+    width: min(94vw, 360px);
+    padding: 11px 12px;
+    border-radius: 12px;
   }
 }
