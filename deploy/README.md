@@ -3,8 +3,9 @@
 ## 目标
 
 - 一个域名下固定路径：
-  - `www.jiguanghuyu.top/qiangchewei` -> 前端
-  - `www.jiguanghuyu.top/qiangchewei_server` -> 后端
+  - `https://jiguanghuyu.top/qiangchewei` -> 前端
+  - `https://jiguanghuyu.top/qiangchewei_server` -> 后端
+  - `https://www.jiguanghuyu.top/*` -> 301 跳转到 `https://jiguanghuyu.top/*`
 - MySQL/Redis 使用远程服务（容器里不启动）
 - Docker 只跑前后端蓝绿容器
 
