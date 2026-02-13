@@ -38,6 +38,12 @@ function formatMoney(n) {
   return `¥${Math.floor(Number(n || 0)).toLocaleString("zh-CN")}`;
 }
 
+function formatMoneyPrecise(n) {
+  const v = Number(n || 0);
+  if (v >= 100) return `¥${Math.floor(v).toLocaleString("zh-CN")}`;
+  return `¥${v.toFixed(2)}`;
+}
+
 function getCarModel(modelId) {
   return CARS.find((c) => c.id === modelId);
 }
@@ -475,7 +481,7 @@ export default function App() {
                     <>
                       {imageSrc && <img className="car-thumb" src={imageSrc} alt={model?.name} />}
                       <div className="car-name">{model?.name}</div>
-                      <div className="income">{formatMoney(carIncomePerMinute(car))}/分钟</div>
+                      <div className="income">{formatMoneyPrecise(carIncomePerMinute(car))}/分钟</div>
                       <div className="hint">车况 {car.condition.toFixed(1)}%</div>
                       <button onClick={() => runAction("pullOut", { carUid: car.uid })}>驶离</button>
                     </>
@@ -649,7 +655,7 @@ export default function App() {
                     {imageSrc && <img className="car-thumb" src={imageSrc} alt={model?.name} />}
                     <strong>{model?.name}</strong><div>品牌：{model?.brand}</div>
                     <div>车况：{car.condition.toFixed(1)}%</div><div>里程：{car.mileage.toFixed(1)} km</div>
-                    <div>当前收益：{formatMoney(carIncomePerMinute(car) * 60)}/小时</div><div>维护系数：x{(model?.maintenanceFactor || 1).toFixed(2)}</div>
+                    <div>当前收益：{formatMoneyPrecise(carIncomePerMinute(car) * 60)}/小时</div><div>维护系数：x{(model?.maintenanceFactor || 1).toFixed(2)}</div>
                     <div>估值：{formatMoney(computeResale(car))}</div>
                   </div>
                   <button disabled={upkeepCost <= 0 || state.cash < upkeepCost} onClick={() => runAction("repairCar", { carUid: car.uid })}>保养 {formatMoney(upkeepCost)}</button>
