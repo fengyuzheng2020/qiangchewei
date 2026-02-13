@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { actionGame, addFriend, getGameState, hasAuth, login, logout, sendCode, setNickname, syncGame } from "./api";
 
 const CARS = [
@@ -112,6 +112,31 @@ export default function App() {
   const [savingNickname, setSavingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
   const [showRules, setShowRules] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const toastTimersRef = useRef(new Map());
+
+  function removeToast(id) {
+    const timer = toastTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      toastTimersRef.current.delete(id);
+    }
+    setToasts((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function pushToast(message, type = "info") {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    const timer = setTimeout(() => removeToast(id), 2400);
+    toastTimersRef.current.set(id, timer);
+  }
+
+  useEffect(() => {
+    return () => {
+      for (const timer of toastTimersRef.current.values()) clearTimeout(timer);
+      toastTimersRef.current.clear();
+    };
+  }, []);
 
   function applyBundle(data) {
     const incomingNickname = data?.me?.nickname || "";
@@ -221,8 +246,21 @@ export default function App() {
     try {
       const data = await actionGame(action, payload);
       applyBundle(data);
+      const successMap = {
+        buyCar: "购买成功",
+        parkOwn: "停车成功",
+        parkFriend: "抢位成功",
+        pullOut: "车辆已驶离",
+        upgradeSlots: "扩建成功",
+        repairCar: "保养完成",
+        claimTask: "任务奖励已领取",
+        resetGame: "已重开存档",
+      };
+      pushToast(successMap[action] || "操作成功", "success");
     } catch (err) {
-      setActionMsg(err.message || "操作失败");
+      const msg = err.message || "操作失败";
+      setActionMsg(msg);
+      pushToast(msg, "error");
     }
   }
 
@@ -232,8 +270,11 @@ export default function App() {
     try {
       await sendCode(email.trim());
       setAuthMsg("验证码已发送，请查收邮箱");
+      pushToast("验证码已发送", "success");
     } catch (err) {
-      setAuthMsg(err.message || "发送失败");
+      const msg = err.message || "发送失败";
+      setAuthMsg(msg);
+      pushToast(msg, "error");
     } finally {
       setSendingCode(false);
     }
@@ -247,8 +288,11 @@ export default function App() {
       setAuthed(true);
       await loadState();
       setCode("");
+      pushToast("登录成功", "success");
     } catch (err) {
-      setAuthMsg(err.message || "登录失败");
+      const msg = err.message || "登录失败";
+      setAuthMsg(msg);
+      pushToast(msg, "error");
     } finally {
       setLoggingIn(false);
     }
@@ -262,8 +306,11 @@ export default function App() {
       setFriendEmail("");
       const data = await getGameState();
       applyBundle(data);
+      pushToast("好友添加成功", "success");
     } catch (err) {
-      setActionMsg(err.message || "添加好友失败");
+      const msg = err.message || "添加好友失败";
+      setActionMsg(msg);
+      pushToast(msg, "error");
     } finally {
       setAddingFriend(false);
     }
@@ -277,6 +324,7 @@ export default function App() {
     setFriends([]);
     setFriendLots({});
     setGlobalRanking([]);
+    pushToast("已退出登录", "info");
   }
 
   async function handleSetNickname() {
@@ -285,8 +333,11 @@ export default function App() {
     try {
       const data = await setNickname(nicknameInput.trim());
       applyBundle(data);
+      pushToast("昵称保存成功", "success");
     } catch (err) {
-      setActionMsg(err.message || "昵称保存失败");
+      const msg = err.message || "昵称保存失败";
+      setActionMsg(msg);
+      pushToast(msg, "error");
     } finally {
       setSavingNickname(false);
     }
@@ -296,9 +347,21 @@ export default function App() {
     return <div className="app"><section className="panel"><h2>正在加载...</h2></section></div>;
   }
 
+  const toastLayer = toasts.length > 0 ? (
+    <div className="toast-wrap">
+      {toasts.map((toast) => (
+        <div key={toast.id} className={`toast toast-${toast.type}`}>
+          <span>{toast.message}</span>
+          <button type="button" onClick={() => removeToast(toast.id)}>×</button>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
   if (!authed) {
     return (
       <div className="app">
+        {toastLayer}
         <section className="panel">
           <h2>账号登录</h2>
           <div className="task-list">
@@ -324,6 +387,8 @@ export default function App() {
 
   return (
     <div className="app">
+      {toastLayer}
+
       <header className="topbar">
         <h1>抢车位</h1>
         <div className="stats">
@@ -454,6 +519,14 @@ export default function App() {
                           {imageSrc && <img className="car-thumb" src={imageSrc} alt={model?.name} />}
                           <div>我的 {model?.name || "车辆"}</div>
                           <button onClick={() => runAction("pullOut", { carUid: slot.carUid })}>取回</button>
+                        </div>
+                      );
+                    }
+                    if (slot.type === "friendSelf") {
+                      return (
+                        <div key={slot.slotId} className="friend-slot friend-self">
+                          <div>{slot.ownerNickname || "好友"} 的 {slot.carLabel || "车辆"}</div>
+                          <div className="hint">好友自有车辆</div>
                         </div>
                       );
                     }

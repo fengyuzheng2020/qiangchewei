@@ -112,6 +112,54 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+.toast-wrap {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  min-width: 220px;
+  max-width: 360px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d7bc8e;
+  background: #fff9eb;
+  box-shadow: 0 10px 24px rgba(58, 35, 4, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.toast-success {
+  background: #ebfff1;
+  border-color: #8fcda3;
+}
+
+.toast-error {
+  background: #fff1ef;
+  border-color: #e3a199;
+}
+
+.toast-info {
+  background: #f3f8ff;
+  border-color: #a9bfdc;
+}
+
+.toast button {
+  padding: 2px 8px;
+  border-radius: 999px;
+  line-height: 1.2;
+  box-shadow: none;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
@@ -251,6 +299,10 @@ button:disabled {
 
 .friend-player {
   background: linear-gradient(180deg, #f3fff4 0%, #ebfff1 100%);
+}
+
+.friend-self {
+  background: linear-gradient(180deg, #eef6ff 0%, #e6f1ff 100%);
 }
 
 .friend-npc {

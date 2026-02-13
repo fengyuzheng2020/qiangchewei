@@ -1,5 +1,6 @@
 import { pool } from "./db.js";
 import { applyAction, defaultGameState, settleState } from "./gameEngine.js";
+import { CARS } from "../config/gameConfig.js";
 
 function parseGameData(v) {
   if (!v) return defaultGameState();
@@ -9,6 +10,10 @@ function parseGameData(v) {
   } catch {
     return defaultGameState();
   }
+}
+
+function getCarNameByModelId(modelId) {
+  return CARS.find((c) => c.id === modelId)?.name || "车辆";
 }
 
 export async function getPlayerProfile(userId) {
@@ -89,6 +94,12 @@ async function buildFriendLots(userId, friends) {
 
   const friendIds = friends.map((f) => f.userId);
   const placeholders = friendIds.map(() => "?").join(",");
+  const [profileRows] = await pool.query(
+    `SELECT user_id AS userId, COALESCE(nickname, CONCAT('玩家', user_id)) AS nickname, game_data AS gameData
+       FROM player_profiles
+      WHERE user_id IN (${placeholders})`,
+    friendIds
+  );
   const [rows] = await pool.query(
     `SELECT fp.friend_user_id AS friendUserId, fp.owner_user_id AS ownerUserId, fp.car_uid AS carUid,
             COALESCE(pp.nickname, CONCAT('玩家', fp.owner_user_id)) AS ownerNickname
@@ -99,29 +110,57 @@ async function buildFriendLots(userId, friends) {
     friendIds
   );
 
+  const profileMap = new Map();
+  for (const row of profileRows) profileMap.set(Number(row.userId), row);
+
   const group = new Map();
   for (const row of rows) {
-    if (!group.has(row.friendUserId)) group.set(row.friendUserId, []);
-    group.get(row.friendUserId).push(row);
+    const fid = Number(row.friendUserId);
+    if (!group.has(fid)) group.set(fid, []);
+    group.get(fid).push(row);
   }
 
   const lots = {};
   for (const friend of friends) {
+    const fid = Number(friend.userId);
     const slots = Array.from({ length: friend.slots || 2 }).map((_, i) => ({
       type: "empty",
       slotId: `${friend.userId}-${i}`,
     }));
 
-    const occupied = group.get(friend.userId) || [];
-    occupied.slice(0, slots.length).forEach((r, i) => {
-      slots[i] = {
-        type: r.ownerUserId === userId ? "player" : "friendCar",
-        slotId: `${friend.userId}-${i}`,
+    const profile = profileMap.get(fid);
+    const friendState = parseGameData(profile?.gameData);
+    const parkedOwn = Array.isArray(friendState.parkedOwn) ? friendState.parkedOwn : [];
+    const cars = Array.isArray(friendState.cars) ? friendState.cars : [];
+    const carByUid = new Map(cars.map((c) => [c.uid, c]));
+
+    // 先放好友自己的车辆，再放别人停入的车辆，剩余空位。
+    for (const ownUid of parkedOwn) {
+      const idx = slots.findIndex((s) => s.type === "empty");
+      if (idx < 0) break;
+      const ownCar = carByUid.get(ownUid);
+      slots[idx] = {
+        type: "friendSelf",
+        slotId: `${friend.userId}-${idx}`,
+        ownerUserId: fid,
+        ownerNickname: profile?.nickname || friend.nickname,
+        carUid: ownUid,
+        carLabel: getCarNameByModelId(ownCar?.modelId),
+      };
+    }
+
+    const occupied = group.get(fid) || [];
+    for (const r of occupied) {
+      const idx = slots.findIndex((s) => s.type === "empty");
+      if (idx < 0) break;
+      slots[idx] = {
+        type: Number(r.ownerUserId) === Number(userId) ? "player" : "friendCar",
+        slotId: `${friend.userId}-${idx}`,
         ownerUserId: r.ownerUserId,
         ownerNickname: r.ownerNickname,
         carUid: r.carUid,
       };
-    });
+    }
 
     lots[String(friend.userId)] = slots;
   }
@@ -204,12 +243,13 @@ async function handleParkFriendAction(userId, state, payload) {
   );
   const friendState = friendProfileRows.length ? parseGameData(friendProfileRows[0].game_data) : defaultGameState();
   const friendSlots = Number(friendState.slots || 2);
+  const friendOwnOccupied = Math.min(friendSlots, Array.isArray(friendState.parkedOwn) ? friendState.parkedOwn.length : 0);
 
   const [countRows] = await pool.query(
     "SELECT COUNT(*) AS c FROM friend_parking WHERE friend_user_id = ?",
     [friendUserId]
   );
-  if (Number(countRows[0].c) >= friendSlots) throw new Error("好友车位已满");
+  if (friendOwnOccupied + Number(countRows[0].c) >= friendSlots) throw new Error("好友车位已满");
 
   await pool.query(
     `INSERT INTO friend_parking(friend_user_id, owner_user_id, car_uid)
