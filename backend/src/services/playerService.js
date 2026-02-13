@@ -43,10 +43,10 @@ export async function savePlayerProfile(userId, payload) {
     `INSERT INTO player_profiles(user_id, nickname, game_data)
      VALUES(?, COALESCE(?, CONCAT('玩家', ?)), ?)
      ON DUPLICATE KEY UPDATE
-      nickname = COALESCE(VALUES(nickname), nickname),
+      nickname = COALESCE(?, nickname),
       game_data = VALUES(game_data),
       updated_at = NOW()`,
-    [userId, nickname, userId, JSON.stringify(gameData)]
+    [userId, nickname, userId, JSON.stringify(gameData), nickname]
   );
   return getPlayerProfile(userId);
 }
@@ -113,6 +113,17 @@ async function buildFriendLots(userId, friends) {
   const profileMap = new Map();
   for (const row of profileRows) profileMap.set(Number(row.userId), row);
 
+  const ownerIds = [...new Set(rows.map((r) => Number(r.ownerUserId)).filter(Boolean))];
+  const ownerProfileMap = new Map();
+  if (ownerIds.length) {
+    const ownerPlaceholders = ownerIds.map(() => "?").join(",");
+    const [ownerRows] = await pool.query(
+      `SELECT user_id AS userId, game_data AS gameData FROM player_profiles WHERE user_id IN (${ownerPlaceholders})`,
+      ownerIds
+    );
+    for (const row of ownerRows) ownerProfileMap.set(Number(row.userId), parseGameData(row.gameData));
+  }
+
   const group = new Map();
   for (const row of rows) {
     const fid = Number(row.friendUserId);
@@ -145,6 +156,7 @@ async function buildFriendLots(userId, friends) {
         ownerUserId: fid,
         ownerNickname: profile?.nickname || friend.nickname,
         carUid: ownUid,
+        carModelId: ownCar?.modelId || "",
         carLabel: getCarNameByModelId(ownCar?.modelId),
       };
     }
@@ -153,12 +165,16 @@ async function buildFriendLots(userId, friends) {
     for (const r of occupied) {
       const idx = slots.findIndex((s) => s.type === "empty");
       if (idx < 0) break;
+      const ownerState = ownerProfileMap.get(Number(r.ownerUserId));
+      const ownerCar = (ownerState?.cars || []).find((c) => c.uid === r.carUid);
       slots[idx] = {
         type: Number(r.ownerUserId) === Number(userId) ? "player" : "friendCar",
         slotId: `${friend.userId}-${idx}`,
         ownerUserId: r.ownerUserId,
         ownerNickname: r.ownerNickname,
         carUid: r.carUid,
+        carModelId: ownerCar?.modelId || "",
+        carLabel: getCarNameByModelId(ownerCar?.modelId),
       };
     }
 

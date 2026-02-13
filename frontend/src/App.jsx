@@ -47,6 +47,15 @@ function getCarImageByModelId(modelId) {
   return model ? CAR_IMAGE_BY_NAME[model.name] || null : null;
 }
 
+function getCarImageBySlot(slot) {
+  if (slot?.carModelId) {
+    const byId = getCarImageByModelId(slot.carModelId);
+    if (byId) return byId;
+  }
+  const byLabel = CARS.find((c) => c.name === slot?.carLabel);
+  return byLabel ? getCarImageByModelId(byLabel.id) : null;
+}
+
 function getCarByUid(cars, carUid) {
   return (cars || []).find((c) => c.uid === carUid);
 }
@@ -139,14 +148,15 @@ export default function App() {
   }, []);
 
   function applyBundle(data) {
+    if (!data || typeof data !== "object") return;
     const incomingNickname = data?.me?.nickname || "";
     const currentNickname = me.nickname || "";
-    setState(data?.state || emptyState());
-    setMe(data?.me || { userId: 0, nickname: "" });
+    if (data?.state) setState(data.state);
+    setMe((prev) => (data?.me ? data.me : prev));
     setNicknameInput((prev) => (prev === currentNickname || !prev ? incomingNickname : prev));
-    setFriends(Array.isArray(data?.friends) ? data.friends : []);
-    setFriendLots(data?.friendLots || {});
-    setGlobalRanking(Array.isArray(data?.globalRanking) ? data.globalRanking : []);
+    if (Array.isArray(data?.friends)) setFriends(data.friends);
+    if (data?.friendLots) setFriendLots(data.friendLots);
+    if (Array.isArray(data?.globalRanking)) setGlobalRanking(data.globalRanking);
   }
 
   async function loadState() {
@@ -188,6 +198,18 @@ export default function App() {
     }, 4000);
     return () => clearInterval(timer);
   }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    if (activeTab !== "friends" && activeTab !== "ranking") return;
+    (async () => {
+      try {
+        await loadState();
+      } catch {
+        // Keep current UI, interval sync will retry.
+      }
+    })();
+  }, [activeTab, authed]);
 
   const parkedFriendSlots = useMemo(() => {
     const map = {};
@@ -331,8 +353,15 @@ export default function App() {
     setSavingNickname(true);
     setActionMsg("");
     try {
+      const nextNickname = nicknameInput.trim();
       const data = await setNickname(nicknameInput.trim());
-      applyBundle(data);
+      if (data?.state || data?.me) {
+        applyBundle(data);
+      } else {
+        // 兼容旧后端返回，仅返回 nickname/userId 时先本地回显。
+        setMe((prev) => ({ ...prev, nickname: data?.nickname || nextNickname }));
+      }
+      await loadState();
       pushToast("昵称保存成功", "success");
     } catch (err) {
       const msg = err.message || "昵称保存失败";
@@ -523,16 +552,20 @@ export default function App() {
                       );
                     }
                     if (slot.type === "friendSelf") {
+                      const selfImageSrc = getCarImageBySlot(slot);
                       return (
                         <div key={slot.slotId} className="friend-slot friend-self">
+                          {selfImageSrc && <img className="car-thumb" src={selfImageSrc} alt={slot.carLabel || "好友车辆"} />}
                           <div>{slot.ownerNickname || "好友"} 的 {slot.carLabel || "车辆"}</div>
                           <div className="hint">好友自有车辆</div>
                         </div>
                       );
                     }
+                    const friendImageSrc = getCarImageBySlot(slot);
                     return (
                       <div key={slot.slotId} className="friend-slot friend-npc">
-                        <div>{slot.ownerNickname || "好友"} 的车辆</div>
+                        {friendImageSrc && <img className="car-thumb" src={friendImageSrc} alt={slot.carLabel || "占位车辆"} />}
+                        <div>{slot.ownerNickname || "好友"} 的 {slot.carLabel || "车辆"}</div>
                         <div className="hint">该车位已被占用</div>
                       </div>
                     );
