@@ -1,18 +1,30 @@
-# QQ抢车位 Web 复刻（React + Vite）
+# 抢车位 Monorepo
 
-## 启动
+## 目录结构
+
+- `frontend/`：前端（React + Vite）
+- `backend/`：后端（Express + MySQL + Redis）
+- `docs/`：设计与美术提示词文档
+
+## 前端启动
 
 ```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-## 还原玩法（当前版本）
+## 后端启动
 
-- 抢车位经营循环：买车、停车、升级车位、收租
-- 贴条 / 举报：在好友停车场处理违停车辆并获得奖励
-- 好友互动排行榜：按贴条、举报、抢位行为生成互动分
-- 车辆折旧：车况与里程影响每小时收益和估值，可保养恢复
-- 任务系统：每日刷新任务，完成后可领取现金与经验
-- 随机事件：周期触发补贴、事故、收益加成等动态事件
-- 本地存档：localStorage 自动保存进度
+```bash
+cd backend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+## 接口规范
+
+- 通信：HTTP JSON
+- 方法：业务接口统一 `POST`
+- 返回：`{"code":0,"msg":"ok","data":{}}`

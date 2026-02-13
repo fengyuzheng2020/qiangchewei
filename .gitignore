@@ -10,6 +10,8 @@ build/
 .env
 .env.*
 !.env.example
+!**/.env.example
+!deploy/backend.env.example
 
 # logs
 npm-debug.log*
@@ -23,3 +25,30 @@ pnpm-debug.log*
 .vscode/
 *.swp
 *.swo
+
+# monorepo outputs
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+backend/node_modules/
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# deploy runtime files
+deploy/.env
+deploy/backend.env
+deploy/.active_color
+
+# secrets / certificates
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+id_rsa
+id_dsa
+secrets/
+certs/
+deploy/certs/

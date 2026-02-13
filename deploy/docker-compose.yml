@@ -1,0 +1,66 @@
+services:
+  frontend_blue:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-/qiangchewei_server}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/qiangchewei/}
+    image: qcw-frontend:blue
+    container_name: qcw-frontend-blue
+    ports:
+      - "${FRONTEND_BLUE_PORT:-18080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  frontend_green:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-/qiangchewei_server}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/qiangchewei/}
+    image: qcw-frontend:green
+    container_name: qcw-frontend-green
+    ports:
+      - "${FRONTEND_GREEN_PORT:-18081}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend_blue:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: qcw-backend:blue
+    container_name: qcw-backend-blue
+    env_file:
+      - ./backend.env
+    ports:
+      - "${BACKEND_BLUE_PORT:-13001}:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend_green:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: qcw-backend:green
+    container_name: qcw-backend-green
+    env_file:
+      - ./backend.env
+    ports:
+      - "${BACKEND_GREEN_PORT:-13002}:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
